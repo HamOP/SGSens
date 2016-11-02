@@ -13,6 +13,9 @@
     - TX0 --> Jeti RX signal
     - GND --> Jeti RX GND + BMP180 GND
     - +5V  --> Jeti RX +5V + BMP180 VCC (careful: BMP180 needs voltage regulator!)
+    
+    Sketch uses the millis() function to calculate climb rate - which will overflow after about 50 days according to Arduino reference.
+    As the sensor is never intended to run this long, no overflow handling was implemented.
 */
 
 // includes
@@ -54,11 +57,11 @@ enum
 JETISENSOR_PTR sensors[] = 
 {
   //              id             name          unit         data type             precision 0->0, 1->0.0, 2->0.00
-  new JetiSensor( ID_VOLTAGE,    "Voltage",    "V",         JetiSensor::TYPE_14b, 2 ),
-  new JetiSensor( ID_ALTITUDE,   "Altitude",   "m",         JetiSensor::TYPE_14b, 0 ),
-  new JetiSensor( ID_TEMP,       "Temp",       "\xB0\x43",  JetiSensor::TYPE_14b, 0 ),
-  new JetiSensor( ID_VARIO,      "Vario",      "m/s",       JetiSensor::TYPE_14b, 2 ),
-  new JetiSensor( ID_PRESS,      "Pressure",   "mbar",      JetiSensor::TYPE_14b, 0 ),
+  new JetiSensor( ID_VOLTAGE,    "Voltage",    "V",         JetiSensor::TYPE_14b, 2 ), // LiPo voltage
+  new JetiSensor( ID_ALTITUDE,   "Altitude",   "m",         JetiSensor::TYPE_14b, 0 ), // altitude
+  new JetiSensor( ID_TEMP,       "Temp",       "\xB0\x43",  JetiSensor::TYPE_14b, 0 ), // temperature from BMP180 sensor
+  new JetiSensor( ID_VARIO,      "Vario",      "m/s",       JetiSensor::TYPE_14b, 2 ), // climb rate
+  new JetiSensor( ID_PRESS,      "Pressure",   "mbar",      JetiSensor::TYPE_14b, 0 ), // air pressure
   
   0 // end of array
 };
@@ -78,14 +81,13 @@ void loop() {
   jetiEx.SetSensorValue( ID_TEMP, temp);
   jetiEx.SetSensorValue( ID_VARIO, vario);
   jetiEx.SetSensorValue( ID_PRESS, pres);
-  count = 0;
   
   jetiEx.DoJetiSend();
 }
 
 double getVoltage()
 {
-
+  count = 0;
   for(int x = 0; x < 20; x++){
     sensorValue = analogRead(A0);
     voltage = sensorValue * (5.0 / 1023.0)*100*ratio*correction;
