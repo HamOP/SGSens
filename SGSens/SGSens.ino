@@ -16,6 +16,10 @@
     
     Sketch uses the millis() function to calculate climb rate - which will overflow after about 50 days according to Arduino reference.
     As the sensor is never intended to run this long, no overflow handling was implemented.
+    
+    Arduino libraries used:
+      - JetiExSensor_V0.9.9 - https://sourceforge.net/projects/jetiexsensorcpplib/
+      - BMP180_Breakout - https://github.com/sparkfun/BMP180_Breakout 
 */
 
 // includes
