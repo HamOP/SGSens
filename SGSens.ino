@@ -31,7 +31,6 @@
 JetiExProtocol jetiEx; // Jeti EX protocol handler
 SFE_BMP180 pressure; // BMP180 pressure sensor
 
-
 // global variables
 double baseline; // baseline pressure
 float voltage; // measured battery voltage
