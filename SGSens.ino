@@ -43,6 +43,11 @@ double temp; // Temperature from BMP180
 double alti; // Altitude
 double pres; // Air pressure
 double vario; // Vario value
+double sensVal;           // for raw sensor values 
+float filterVal = .1;       // this determines smoothness  - .0001 is max  1 is off (no smoothing)
+double smoothedVal;     // this holds the last loop value just use a unique variable for every different sensor that needs smoothing
+
+
 
 
 // Jeti EX sensor definitions
@@ -60,14 +65,15 @@ enum
 JETISENSOR_PTR sensors[] =
 {
   //              id             name          unit         data type             precision 0->0, 1->0.0, 2->0.00
-  new JetiSensor( ID_VOLTAGE,    "Voltage",    "V",         JetiSensor::TYPE_14b, 2 ), // LiPo voltage
-  new JetiSensor( ID_ALTITUDE,   "Altitude",   "m",         JetiSensor::TYPE_14b, 0 ), // altitude
-  new JetiSensor( ID_TEMP,       "Temp",       "\xB0\x43",  JetiSensor::TYPE_14b, 0 ), // temperature from BMP180 sensor
+  new JetiSensor( ID_VOLTAGE,    "Spannung",    "V",         JetiSensor::TYPE_14b, 2 ), // LiPo voltage
+  new JetiSensor( ID_ALTITUDE,   "Hoehe",   "m",         JetiSensor::TYPE_14b, 0 ), // altitude
+  new JetiSensor( ID_TEMP,       "Temperatur",       "\xB0\x43",  JetiSensor::TYPE_14b, 0 ), // temperature from BMP180 sensor
   new JetiSensor( ID_VARIO,      "Vario",      "m/s",       JetiSensor::TYPE_14b, 2 ), // climb rate
-  new JetiSensor( ID_PRESS,      "Pressure",   "mbar",      JetiSensor::TYPE_14b, 0 ), // air pressure
+  new JetiSensor( ID_PRESS,      "Luftdruck",   "mbar",      JetiSensor::TYPE_14b, 0 ), // air pressure
 
   0 // end of array
 };
+
 
 void setup() {
   pressure.begin(); // initialize pressure sensor
@@ -80,9 +86,10 @@ void loop() {
 
   jetiEx.SetSensorValue( ID_VOLTAGE, getVoltage());
   readAlti();
+  smoothedVal =  smooth(vario, filterVal, smoothedVal);
   jetiEx.SetSensorValue( ID_ALTITUDE, alti);
   jetiEx.SetSensorValue( ID_TEMP, temp);
-  jetiEx.SetSensorValue( ID_VARIO, vario);
+  jetiEx.SetSensorValue( ID_VARIO, smoothedVal);
   jetiEx.SetSensorValue( ID_PRESS, pres);
 
   jetiEx.DoJetiSend();
@@ -95,7 +102,7 @@ double getVoltage()
     sensorValue = analogRead(A0);
     voltage = sensorValue * (5.0 / 1023.0)*100*ratio*correction;
     count = count + voltage;
-    delay(10);
+    //delay(10);
     }
   voltage = count / 20.0;
   return voltage;
@@ -160,13 +167,33 @@ double getPressure()
 void readAlti() {
   unsigned long timestamp_old;
   double alti_old;
-
-  alti_old = alti;
-  timestamp_old = timestamp;
-
-  pres = getPressure();
+  count = 0;
+  for(int x = 0; x < 20; x++){
+    alti_old = alti;
+    timestamp_old = timestamp;
+    pres = getPressure();
+    count = count + pres;
+    //delay(10);
+    }
+  pres = count / 20.0;
+  //pres = getPressure();
   timestamp = millis();
   alti =  pressure.altitude(pres,baseline);
-  vario = 100 * (alti - alti_old) * 1000 / (timestamp - timestamp_old);
+  vario = ( 100*(alti - alti_old) * 1000) / (timestamp - timestamp_old);
 
+}
+
+double smooth(double data, float filterVal, double smoothedVal){
+
+
+  if (filterVal > 1){      // check to make sure param's are within range
+    filterVal = .99;
+  }
+  else if (filterVal <= 0){
+    filterVal = 0;
+  }
+
+  smoothedVal = (data * (1 - filterVal)) + (smoothedVal  *  filterVal);
+
+  return (double)smoothedVal;
 }
