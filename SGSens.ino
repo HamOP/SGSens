@@ -44,7 +44,7 @@ double alti; // Altitude
 double pres; // Air pressure
 double vario; // Vario value
 double sensVal;           // for raw sensor values 
-float filterVal = .1;       // this determines smoothness  - .0001 is max  1 is off (no smoothing)
+float filterVal = 0.0;       // this determines smoothness  - .0001 is max  1 is off (no smoothing)
 double smoothedVal;     // this holds the last loop value just use a unique variable for every different sensor that needs smoothing
 
 
@@ -77,6 +77,7 @@ JETISENSOR_PTR sensors[] =
 
 void setup() {
   pressure.begin(); // initialize pressure sensor
+  delay(1000);
   jetiEx.Start( "SGSens", sensors ); // start JetiEX stack
   baseline = getPressure();  // get baseline pressure
   timestamp = millis();
@@ -168,19 +169,37 @@ void readAlti() {
   unsigned long timestamp_old;
   double alti_old;
   count = 0;
-  for(int x = 0; x < 20; x++){
+  for(int x = 0; x < 10; x++){
     alti_old = alti;
     timestamp_old = timestamp;
     pres = getPressure();
     count = count + pres;
     //delay(10);
     }
-  pres = count / 20.0;
+  pres = count / 10.0;
   //pres = getPressure();
+  alti_old =  pressure.altitude(pres,baseline);
+  //delay(20);
+    count = 0;
+  for(int x = 0; x < 10; x++){
+    alti_old = alti;
+    timestamp_old = timestamp;
+    pres = getPressure();
+    count = count + pres;
+    //delay(10);
+    }
+  pres = count / 10.0;
   timestamp = millis();
-  alti =  pressure.altitude(pres,baseline);
+  alti = pressure.altitude(pres,baseline);
   vario = ( 100*(alti - alti_old) * 1000) / (timestamp - timestamp_old);
-
+  /* Serial.print(alti);
+   Serial.print(" ");
+   Serial.print((alti - alti_old));
+   Serial.print(" ");
+   Serial.println((timestamp - timestamp_old));
+  */
+  //Serial.print(vario);
+  //Serial.print(" ");
 }
 
 double smooth(double data, float filterVal, double smoothedVal){
