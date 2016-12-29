@@ -45,7 +45,7 @@ double alti; // Altitude
 double pres; // Air pressure
 double vario; // Vario value
 double sensVal;           // for raw sensor values 
-float filterVal = 0.0;       // this determines smoothness  - .0001 is max  1 is off (no smoothing)
+float filterVal = 0.0;       // this determines smoothness  - .99 is max  0 is off (no smoothing)
 double smoothedVal;     // this holds the last loop value just use a unique variable for every different sensor that needs smoothing
 float amps;
 double mAh = 0.0;
