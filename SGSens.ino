@@ -3,12 +3,13 @@
 
   Author:   Stefan Glück
   Date:     2016-11-02
-  Version:  0.1
+  Version:  0.2
 
   Platform:  Arduino Pro Mini
   Sensors:
     - Voltage divider to A0
     - BMP180 pressure sensor (SDA --> A4, SCL --> A5)
+    - Current Sensor to A1
   Wiring:
     - TX0 --> Jeti RX signal
     - GND --> Jeti RX GND + BMP180 GND
@@ -35,7 +36,7 @@ SFE_BMP180 pressure; // BMP180 pressure sensor
 double baseline; // baseline pressure
 float voltage; // measured battery voltage
 int sensorValue; // sensor value for voltage measurement
-const int ratio = 2; // voltage divider ratio
+const int ratio = 3; // voltage divider ratio
 const float correction = 1.00998; // calibration factor for voltage measurement
 float count = 0; // variable for mean value calculation
 unsigned long timestamp = 0; // for calculating vario rate
@@ -46,7 +47,9 @@ double vario; // Vario value
 double sensVal;           // for raw sensor values 
 float filterVal = 0.0;       // this determines smoothness  - .0001 is max  1 is off (no smoothing)
 double smoothedVal;     // this holds the last loop value just use a unique variable for every different sensor that needs smoothing
-
+float amps;
+double mAh = 0.0;
+unsigned long timestamp_old = 0;
 
 
 
@@ -58,7 +61,9 @@ enum
   ID_ALTITUDE,
   ID_TEMP,
   ID_VARIO,
-  ID_PRESS
+  ID_PRESS,
+  ID_AMPS,
+  ID_CAPA
 };
 
 // id from 1..15
@@ -70,6 +75,9 @@ JETISENSOR_PTR sensors[] =
   new JetiSensor( ID_TEMP,       "Temperatur",       "\xB0\x43",  JetiSensor::TYPE_14b, 0 ), // temperature from BMP180 sensor
   new JetiSensor( ID_VARIO,      "Vario",      "m/s",       JetiSensor::TYPE_14b, 2 ), // climb rate
   new JetiSensor( ID_PRESS,      "Luftdruck",   "mbar",      JetiSensor::TYPE_14b, 0 ), // air pressure
+  new JetiSensor( ID_AMPS,      "Strom",   "A",      JetiSensor::TYPE_14b, 2 ), // Current
+  new JetiSensor( ID_CAPA,      "Kapazitaet",   "mAh",      JetiSensor::TYPE_14b, 0 ), // Capacity
+
 
   0 // end of array
 };
@@ -84,15 +92,18 @@ void setup() {
 }
 
 void loop() {
-
+  timestamp_old = timestamp;
   jetiEx.SetSensorValue( ID_VOLTAGE, getVoltage());
+  amps = getAmps();
+  jetiEx.SetSensorValue( ID_AMPS, amps*100);
   readAlti();
   smoothedVal =  smooth(vario, filterVal, smoothedVal);
   jetiEx.SetSensorValue( ID_ALTITUDE, alti);
   jetiEx.SetSensorValue( ID_TEMP, temp);
   jetiEx.SetSensorValue( ID_VARIO, smoothedVal);
   jetiEx.SetSensorValue( ID_PRESS, pres);
-
+  mAh = mAh + ((timestamp-timestamp_old)/3600.*amps);
+  jetiEx.SetSensorValue( ID_CAPA, mAh);
   jetiEx.DoJetiSend();
 }
 
@@ -102,6 +113,19 @@ double getVoltage()
   for(int x = 0; x < 20; x++){
     sensorValue = analogRead(A0);
     voltage = sensorValue * (5.0 / 1023.0)*100*ratio*correction;
+    count = count + voltage;
+    //delay(10);
+    }
+  voltage = count / 20.0;
+  return voltage;
+}
+
+double getAmps()
+{
+  count = 0;
+  for(int x = 0; x < 20; x++){
+    sensorValue = analogRead(A1);
+    voltage = (sensorValue * (5.0 / 1023.0)-2.5)*10;
     count = count + voltage;
     //delay(10);
     }
